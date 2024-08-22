@@ -15,7 +15,7 @@ SRCS := *.cpp
 OBJS := $(SRCS:.c=.o)
 
 # output executable name
-EXEC := filechooser
+EXEC := selector
 
 # default recipe
 all: $(EXEC)
