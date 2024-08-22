@@ -3,21 +3,39 @@
 #include <stdint.h>
 #include <iostream>
 
-void FileChooser::getFileList(std::string directory)
+
+void FileChooser::getFileList(std::string directory, bool recursive)
 {
-    // Generates a list of files in the given directory
-    auto files{std::filesystem::recursive_directory_iterator{
-        directory,
-        std::filesystem::directory_options::skip_permission_denied}};
-    
-    for (auto &file : files)
+    if (recursive)
     {
-        if (std::filesystem::is_regular_file(file))
-            fileList.push_back(file.path().c_str());
+        // Recursive exploration (current behavior)
+        auto files{std::filesystem::recursive_directory_iterator{
+            directory,
+            std::filesystem::directory_options::skip_permission_denied}};
+        
+        for (auto &file : files)
+        {
+            if (std::filesystem::is_regular_file(file))
+                fileList.push_back(file.path().c_str());
+        }
     }
-    
+    else
+    {
+        // Non-recursive exploration
+        auto files{std::filesystem::directory_iterator{
+            directory,
+            std::filesystem::directory_options::skip_permission_denied}};
+        
+        for (auto &file : files)
+        {
+            if (std::filesystem::is_regular_file(file))
+                fileList.push_back(file.path().c_str());
+        }
+    }
+
     std::sort(fileList.begin(), fileList.end());
 }
+
 
 void FileChooser::drawTitle(const std::string &title)
 {
@@ -67,7 +85,7 @@ void FileChooser::drawSelector()
     SDL_RenderFillRect(renderer, &selectorRect);
 }
 
-FileChooser::FileChooser(std::string directory, std::string title, std::string backgroundImage)
+FileChooser::FileChooser(std::string directory, std::string title, std::string backgroundImage, bool recursive)
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
     TTF_Init();
@@ -120,7 +138,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
 
     drawTitle("Loading...");
     SDL_RenderPresent(renderer);
-    getFileList(directory);
+    getFileList(directory, recursive);  // Pass the recursive option here
 
     bool isRunning{true};
     while (isRunning)
@@ -190,13 +208,11 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     }
                     break;
 
-                // If the analog stick movement event is enabled, it is ignored here.
                 case SDL_CONTROLLERAXISMOTION:
                     break;  // Completely ignore analog stick input
             }
         }
         
-        // Display background image, if available
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
@@ -223,6 +239,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
 
     deinit();
 }
+
 
 std::string FileChooser::get()
 {

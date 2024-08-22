@@ -25,7 +25,7 @@ private:
     int chosenFileI{};
     std::string title;
 
-    void getFileList(std::string directory);
+    void getFileList(std::string directory, bool recursive);  // Updated to include bool recursive
     void drawFileList();
     void drawTitle(const std::string &title);
     void drawSelector();
@@ -34,7 +34,7 @@ private:
     void deinit();
 
 public:
-    FileChooser(std::string directory, std::string title, std::string backgroundImage = "");
+    FileChooser(std::string directory, std::string title, std::string backgroundImage = "", bool recursive = false);
     std::string get();
 };
 

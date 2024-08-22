@@ -1,53 +1,31 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
- * 
- */
-
 #include "sdl_file_chooser.h"
 #include <iostream>
-#include <string>
+#include <cstring>
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    std::string directory = ".";  // Default directory
-    std::string customTitle = FILECHOOSER_TITLE;  // Default title
-    std::string backgroundImage = "";  // No default background
+    std::string title = "Choose a file";
+    std::string backgroundImage = "";
+    bool recursive = false;
 
-    // Processing command line arguments
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "-m" && i + 1 < argc) {
-            customTitle = argv[++i]; // Use the title provided after -m
-        } else if (arg == "-d" && i + 1 < argc) {
-            directory = argv[++i]; // Uses the directory provided after -d
-        } else if (arg == "-i" && i + 1 < argc) {
-            backgroundImage = argv[++i];  // Use background image after -i
+    // Argument analysis
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
+            title = argv[++i];  // Customized title
+        }
+        else if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
+            backgroundImage = argv[++i];  // Background image
+        }
+        else if (strcmp(argv[i], "-r") == 0) {
+            recursive = true;  // Recursion enabled
         }
     }
 
-    // Create a FileChooser instance with processed arguments
-    FileChooser fileChooser(directory, customTitle, backgroundImage);
+    FileChooser fileChooser(".", title, backgroundImage, recursive);
     std::string chosenFile = fileChooser.get();
     
-    // Display of selected file or message indicating that nothing has been selected
-    if (!chosenFile.empty()) {
-        std::cout << "Selected: " << chosenFile << '\n';
-    } else {
-        std::cout << "No file selected or application closed." << '\n';
-    }
+    std::cout << "Selected: " << chosenFile << '\n';
     
     return 0;
 }
