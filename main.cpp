@@ -24,6 +24,7 @@ int main(int argc, char* argv[])
 {
     std::string directory = ".";  // Default directory
     std::string customTitle = FILECHOOSER_TITLE;  // Default title
+    std::string backgroundImage = "";  // No default background
 
     // Processing command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -32,11 +33,13 @@ int main(int argc, char* argv[])
             customTitle = argv[++i]; // Use the title provided after -m
         } else if (arg == "-d" && i + 1 < argc) {
             directory = argv[++i]; // Uses the directory provided after -d
+        } else if (arg == "-i" && i + 1 < argc) {
+            backgroundImage = argv[++i];  // Use background image after -i
         }
     }
 
     // Create a FileChooser instance with processed arguments
-    FileChooser fileChooser(directory, customTitle);
+    FileChooser fileChooser(directory, customTitle, backgroundImage);
     std::string chosenFile = fileChooser.get();
     
     // Display of selected file or message indicating that nothing has been selected
