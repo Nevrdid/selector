@@ -18,13 +18,33 @@
 
 #include "sdl_file_chooser.h"
 #include <iostream>
+#include <string>
 
-int main()
+int main(int argc, char* argv[])
 {
-    FileChooser fileChooser{"."};
-    std::string chosenFile{fileChooser.get()};
+    std::string directory = ".";  // Default directory
+    std::string customTitle = FILECHOOSER_TITLE;  // Default title
+
+    // Processing command line arguments
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-m" && i + 1 < argc) {
+            customTitle = argv[++i]; // Use the title provided after -m
+        } else if (arg == "-d" && i + 1 < argc) {
+            directory = argv[++i]; // Uses the directory provided after -d
+        }
+    }
+
+    // Create a FileChooser instance with processed arguments
+    FileChooser fileChooser(directory, customTitle);
+    std::string chosenFile = fileChooser.get();
     
-    std::cout << "Selected: " << chosenFile << '\n';
+    // Display of selected file or message indicating that nothing has been selected
+    if (!chosenFile.empty()) {
+        std::cout << "Selected: " << chosenFile << '\n';
+    } else {
+        std::cout << "No file selected or application closed." << '\n';
+    }
     
     return 0;
 }

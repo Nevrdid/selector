@@ -21,6 +21,7 @@ private:
     TTF_Font *font;
     
     int chosenFileI{};
+    std::string title; // Add a custom title field
 
     void getFileList(std::string directory);
     
@@ -31,7 +32,7 @@ private:
     void deinit();
 
 public:
-    FileChooser(std::string directory);
+    FileChooser(std::string directory, std::string customTitle = FILECHOOSER_TITLE); // Constructor with optional title
     
     std::string get();
 };

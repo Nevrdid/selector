@@ -66,7 +66,8 @@ void FileChooser::drawSelector()
     SDL_RenderFillRect(renderer, &selectorRect);
 }
 
-FileChooser::FileChooser(std::string directory)
+FileChooser::FileChooser(std::string directory, std::string customTitle)
+    : title(customTitle)  // Personalized title initialization
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
     TTF_Init();
@@ -109,97 +110,93 @@ FileChooser::FileChooser(std::string directory)
     SDL_RenderPresent(renderer);
     getFileList(directory);
 
-bool isRunning{true};
-while (isRunning)
-{
-    SDL_Event event;
-    
-    SDL_PollEvent(&event);
-    
-    switch (event.type)
+    bool isRunning{true};
+    while (isRunning)
     {
-        case SDL_QUIT:
-            chosenFileI = -1;
-            isRunning = false;
-            break;
-            
-        case SDL_KEYDOWN:
-            switch (event.key.keysym.sym)
-            {
-                case SDLK_ESCAPE:
-                    chosenFileI = -1;
-                    isRunning = false;
-                    break;
+        SDL_Event event;
+        
+        SDL_PollEvent(&event);
+        
+        switch (event.type)
+        {
+            case SDL_QUIT:
+                chosenFileI = -1;
+                isRunning = false;
+                break;
                 
-                case SDLK_DOWN:
-                    chosenFileI += 1;
-                    if (chosenFileI > static_cast<int>(fileList.size())-1)
-                        chosenFileI = fileList.size()-1;
-                    break;
-                
-                case SDLK_UP:
-                    chosenFileI -= 1;
-                    if (chosenFileI < 0)
-                        chosenFileI = 0;
-                    break;
-                
-                case SDLK_RETURN:
-                    isRunning = false;
-                    deinit();
-                    return;
-            }
-            break;
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym)
+                {
+                    case SDLK_ESCAPE:
+                        chosenFileI = -1;
+                        isRunning = false;
+                        break;
+                    
+                    case SDLK_DOWN:
+                        chosenFileI += 1;
+                        if (chosenFileI > static_cast<int>(fileList.size())-1)
+                            chosenFileI = fileList.size()-1;
+                        break;
+                    
+                    case SDLK_UP:
+                        chosenFileI -= 1;
+                        if (chosenFileI < 0)
+                            chosenFileI = 0;
+                        break;
+                    
+                    case SDLK_RETURN:
+                        isRunning = false;
+                        deinit();
+                        return;
+                }
+                break;
 
-        case SDL_CONTROLLERBUTTONDOWN:
-            switch (event.cbutton.button)
-            {
-                case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                    chosenFileI += 1;
-                    if (chosenFileI > static_cast<int>(fileList.size())-1)
-                        chosenFileI = fileList.size()-1;
-                    break;
+            case SDL_CONTROLLERBUTTONDOWN:
+                switch (event.cbutton.button)
+                {
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        chosenFileI += 1;
+                        if (chosenFileI > static_cast<int>(fileList.size())-1)
+                            chosenFileI = fileList.size()-1;
+                        break;
 
-                case SDL_CONTROLLER_BUTTON_DPAD_UP:
-                    chosenFileI -= 1;
-                    if (chosenFileI < 0)
-                        chosenFileI = 0;
-                    break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        chosenFileI -= 1;
+                        if (chosenFileI < 0)
+                            chosenFileI = 0;
+                        break;
 
-                case SDL_CONTROLLER_BUTTON_B:
-                    isRunning = false;
-                    deinit();
-                    return;
+                    case SDL_CONTROLLER_BUTTON_B:
+                        printf("No file selected\n");
+                        isRunning = false;
+                        deinit();
+                        return;
 
-                case SDL_CONTROLLER_BUTTON_A:
-                    chosenFileI = -1;
-                    isRunning = false;
-                    break;
-            }
-            break;
+                    case SDL_CONTROLLER_BUTTON_A:
+                        chosenFileI = -1;
+                        isRunning = false;
+                        break;
+                }
+                break;
+        }
+        
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
 
-        case SDL_CONTROLLERAXISMOTION:
-            // Gestion du mouvement des sticks analogiques
-
-            break;
+        drawSelector();
+        drawTitle(title); // Using the personalized title
+        drawFileList();
+        
+        SDL_RenderPresent(renderer);
+        
+        SDL_Delay(20);
     }
     
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
+    if (controller) {
+        SDL_GameControllerClose(controller);
+    }
 
-    drawSelector();
-    drawTitle(FILECHOOSER_TITLE);
-    drawFileList();
-    
-    SDL_RenderPresent(renderer);
-    
-    SDL_Delay(20);
-}
-
-if (controller) {
-    SDL_GameControllerClose(controller);
-}
-
-deinit();
+    deinit();
 }
 
 std::string FileChooser::get()
