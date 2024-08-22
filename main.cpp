@@ -1,6 +1,18 @@
 #include "sdl_file_chooser.h"
 #include <iostream>
 #include <cstring>
+#include <vector>
+
+// Function to replace all occurrences of \n with a real line feed
+std::string replaceLiteralNewlines(const std::string& str) {
+    std::string result = str;
+    size_t pos = 0;
+    while ((pos = result.find("\\n", pos)) != std::string::npos) {
+        result.replace(pos, 2, "\n");
+        pos += 1;  // Advance one position after replacement
+    }
+    return result;
+}
 
 int main(int argc, char* argv[])
 {
@@ -17,7 +29,7 @@ int main(int argc, char* argv[])
             directory = argv[++i];
         } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
             if (strlen(argv[i + 1]) > 0) {
-                title = argv[++i];
+                title = replaceLiteralNewlines(argv[++i]);  // Replace \n with real line breaks
             } else {
                 std::cerr << "Error: Title cannot be empty. Using default title." << std::endl;
                 title = " ";

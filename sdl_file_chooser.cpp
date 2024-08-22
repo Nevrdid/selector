@@ -35,18 +35,30 @@ void FileChooser::getFileList(std::string directory, bool recursive)
 
 void FileChooser::drawTitle(const std::string &title)
 {
-    SDL_Surface *textSurface = TTF_RenderText_Solid(font, title.c_str(), {255, 255, 255, 255});
-    
-    SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
-    SDL_Rect targetRect{10, 10, textSurface->w / 3, textSurface->h / 3};
-    
-    SDL_Texture* textTexture{SDL_CreateTextureFromSurface(renderer, textSurface)};
-    
-    SDL_RenderCopy(renderer, textTexture, &sourceRect, &targetRect);
-    
-    SDL_DestroyTexture(textTexture);
-    SDL_FreeSurface(textSurface);
+    int lineHeight = 40;  // Height between lines (adjustable according to font size)
+    int yOffset = 10;     // Vertical position of first line
+
+    // Divide title with line breaks
+    std::istringstream stream(title);
+    std::string line;
+
+    while (std::getline(stream, line, '\n')) {
+        SDL_Surface *textSurface = TTF_RenderText_Solid(font, line.c_str(), {255, 255, 255, 255});
+        
+        SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
+        SDL_Rect targetRect{10, yOffset, textSurface->w / 3, textSurface->h / 3};
+        
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        
+        SDL_RenderCopy(renderer, textTexture, &sourceRect, &targetRect);
+        
+        SDL_DestroyTexture(textTexture);
+        SDL_FreeSurface(textSurface);
+
+        yOffset += lineHeight;  // Adjust offset for next line
+    }
 }
+
 
 
 void FileChooser::drawFileList()
@@ -365,7 +377,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     break;
 
                 case SDL_CONTROLLERAXISMOTION:
-                    break;  // completely ignore analog stick input
+                    break;  // Completely ignore analog stick input
             }
         }
         
