@@ -5,16 +5,43 @@
 
 void FileChooser::getFileList(std::string directory, bool recursive)
 {
+    auto matchFilters = [&](const std::filesystem::path &file)
+    {
+        // Convert file name to lowercase
+        std::string filename = file.filename().string();
+        std::transform(filename.begin(), filename.end(), filename.begin(), ::tolower);
+
+        if (filters.empty())
+        {
+            return true; // No filters means all files are allowed
+        }
+
+        for (const auto &filter : filters)
+        {
+            std::string lowerFilter = filter;
+            std::transform(lowerFilter.begin(), lowerFilter.end(), lowerFilter.begin(), ::tolower);
+
+            // Check if the filter is present in the file name
+            if (filename.find(lowerFilter) != std::string::npos)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+
     if (recursive)
     {
         auto files{std::filesystem::recursive_directory_iterator{
             directory,
             std::filesystem::directory_options::skip_permission_denied}};
-        
+
         for (auto &file : files)
         {
-            if (std::filesystem::is_regular_file(file))
-                fileList.push_back(file.path().c_str());
+            if (std::filesystem::is_regular_file(file) && matchFilters(file.path()))
+            {
+                fileList.push_back(file.path().string());
+            }
         }
     }
     else
@@ -22,68 +49,219 @@ void FileChooser::getFileList(std::string directory, bool recursive)
         auto files{std::filesystem::directory_iterator{
             directory,
             std::filesystem::directory_options::skip_permission_denied}};
-        
+
         for (auto &file : files)
         {
-            if (std::filesystem::is_regular_file(file))
-                fileList.push_back(file.path().c_str());
+            if (std::filesystem::is_regular_file(file) && matchFilters(file.path()))
+            {
+                fileList.push_back(file.path().string());
+            }
         }
     }
 
     std::sort(fileList.begin(), fileList.end());
 }
 
-void FileChooser::drawTitle(const std::string &title)
+// Update constructor to handle filters
+FileChooser::FileChooser(std::string directory, std::string title, std::string backgroundImage, bool recursive, std::vector<std::string> filters)
+    : fileList(), filters(filters), window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), chosenFileI(0), title(title)
 {
-    int lineHeight = 40;  // Height between lines (adjustable according to font size)
-    int yOffset = 10;     // Vertical position of first line
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    TTF_Init();
 
-    // Divide title with line breaks
-    std::istringstream stream(title);
-    std::string line;
+    window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 1000, SDL_WINDOW_ALLOW_HIGHDPI);
 
-    while (std::getline(stream, line, '\n')) {
-        SDL_Surface *textSurface = TTF_RenderText_Solid(font, line.c_str(), {255, 255, 255, 255});
-        
-        SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
-        SDL_Rect targetRect{10, yOffset, textSurface->w / 3, textSurface->h / 3};
-        
-        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-        
-        SDL_RenderCopy(renderer, textTexture, &sourceRect, &targetRect);
-        
-        SDL_DestroyTexture(textTexture);
-        SDL_FreeSurface(textSurface);
-
-        yOffset += lineHeight;  // Adjust offset for next line
+    if (!window)
+    {
+        std::cerr << "Unable to create window" << '\n';
+        std::exit(2);
     }
+
+    renderer = SDL_CreateRenderer(window, -1, 0);
+
+    if (!renderer)
+    {
+        std::cerr << "Unable to create renderer" << '\n';
+        std::exit(2);
+    }
+
+    if (!backgroundImage.empty())
+    {
+        SDL_Surface *bgSurface = IMG_Load(backgroundImage.c_str());
+        if (bgSurface)
+        {
+            backgroundTexture = SDL_CreateTextureFromSurface(renderer, bgSurface);
+            SDL_FreeSurface(bgSurface);
+        }
+        else
+        {
+            std::cerr << "Failed to load background image: " << IMG_GetError() << '\n';
+        }
+    }
+
+    font = TTF_OpenFont("./Anonymous_Pro.ttf", 100);
+
+    if (!font)
+    {
+        std::cerr << "Unable to open font file." << '\n';
+        std::exit(2);
+    }
+
+    SDL_GameController *controller = NULL;
+    if (SDL_NumJoysticks() > 0)
+    {
+        controller = SDL_GameControllerOpen(0);
+        if (!controller)
+        {
+            std::cerr << "Failed to open controller: " << SDL_GetError() << '\n';
+        }
+    }
+    else
+    {
+        std::cerr << "No joystick found\n";
+    }
+
+    drawTitle("Loading...");
+    SDL_RenderPresent(renderer);
+    getFileList(directory, recursive); // Call with filters and recursive flag
+
+    bool isRunning{true};
+    while (isRunning)
+    {
+        SDL_Event event;
+
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+            case SDL_QUIT:
+                chosenFileI = -1;
+                isRunning = false;
+                break;
+
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_ESCAPE:
+                    chosenFileI = -1;
+                    isRunning = false;
+                    break;
+
+                case SDLK_DOWN:
+                case SDLK_s:
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+                    {
+                        ++chosenFileI;
+                    }
+                    break;
+
+                case SDLK_UP:
+                case SDLK_w:
+                    if (chosenFileI > 0)
+                    {
+                        --chosenFileI;
+                    }
+                    break;
+
+                case SDLK_RETURN:
+                    isRunning = false;
+                    break;
+                }
+                break;
+
+            case SDL_CONTROLLERBUTTONDOWN:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN && chosenFileI < static_cast<int>(fileList.size()) - 1)
+                {
+                    ++chosenFileI;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP && chosenFileI > 0)
+                {
+                    --chosenFileI;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
+                {
+                    isRunning = false;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B)
+                {
+                    chosenFileI = -1;
+                    isRunning = false;
+                }
+                break;
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        drawBackground();
+        drawSelector();
+        drawTitle(title);
+        drawFileList();
+        SDL_RenderPresent(renderer);
+    }
+    if (backgroundTexture)
+    {
+        SDL_DestroyTexture(backgroundTexture);
+    }
+
+    if (controller)
+    {
+        SDL_GameControllerClose(controller);
+    }
+
+    deinit();
 }
-
-
 
 void FileChooser::drawFileList()
 {
     for (int i{}; i < static_cast<int>(fileList.size()); ++i)
     {
-        int y{500-chosenFileI*30+i*30};
-        
+        int y{500 - chosenFileI * 30 + i * 30};
+
         if (y < 1000 && y > 0)
         {
             SDL_Surface *textSurface = TTF_RenderText_Blended(
                 font,
                 fileList[i].c_str(),
-                {255, 255, 255, static_cast<uint8_t>(255-abs(500-y)/2)});
-            
+                {255, 255, 255, static_cast<uint8_t>(255 - abs(500 - y) / 2)});
+
             SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
             SDL_Rect targetRect{0, y, textSurface->w / 5, textSurface->h / 5};
-            
-            SDL_Texture* textTexture{SDL_CreateTextureFromSurface(renderer, textSurface)};
-            
+
+            SDL_Texture *textTexture{SDL_CreateTextureFromSurface(renderer, textSurface)};
+
             SDL_RenderCopy(renderer, textTexture, &sourceRect, &targetRect);
-            
+
             SDL_DestroyTexture(textTexture);
             SDL_FreeSurface(textSurface);
         }
+    }
+}
+
+void FileChooser::drawTitle(const std::string &title)
+{
+    int lineHeight = 40; // Height between lines (adjustable according to font size)
+    int yOffset = 10;    // Vertical position of first line
+
+    // Divide title with line breaks
+    std::istringstream stream(title);
+    std::string line;
+
+    while (std::getline(stream, line, '\n'))
+    {
+        SDL_Surface *textSurface = TTF_RenderText_Solid(font, line.c_str(), {255, 255, 255, 255});
+
+        SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
+        SDL_Rect targetRect{10, yOffset, textSurface->w / 3, textSurface->h / 3};
+
+        SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+        SDL_RenderCopy(renderer, textTexture, &sourceRect, &targetRect);
+
+        SDL_DestroyTexture(textTexture);
+        SDL_FreeSurface(textSurface);
+
+        yOffset += lineHeight; // Adjust offset for next line
     }
 }
 
@@ -96,8 +274,9 @@ void FileChooser::drawSelector()
 
 void FileChooser::drawBackground()
 {
-    if (backgroundTexture) {
-        SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);  // Full-window image
+    if (backgroundTexture)
+    {
+        SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL); // Full-window image
     }
 }
 // New builder for customized selections with D-Pad event management
@@ -108,15 +287,15 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
     TTF_Init();
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 1000, SDL_WINDOW_ALLOW_HIGHDPI);
-    
+
     if (!window)
     {
         std::cerr << "Unable to create window" << '\n';
         std::exit(2);
     }
-    
+
     renderer = SDL_CreateRenderer(window, -1, 0);
-    
+
     if (!renderer)
     {
         std::cerr << "Unable to create renderer" << '\n';
@@ -124,34 +303,42 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
     }
 
     // Load background image if supplied
-    if (!backgroundImage.empty()) {
-        SDL_Surface* bgSurface = IMG_Load(backgroundImage.c_str());
-        if (bgSurface) {
+    if (!backgroundImage.empty())
+    {
+        SDL_Surface *bgSurface = IMG_Load(backgroundImage.c_str());
+        if (bgSurface)
+        {
             backgroundTexture = SDL_CreateTextureFromSurface(renderer, bgSurface);
             SDL_FreeSurface(bgSurface);
-        } else {
+        }
+        else
+        {
             std::cerr << "Failed to load background image: " << IMG_GetError() << '\n';
         }
     }
 
     font = TTF_OpenFont("./Anonymous_Pro.ttf", 100);
-    
+
     if (!font)
     {
         std::cerr << "Unable to open font file." << '\n';
         std::exit(2);
     }
 
-    fileList = customChoices;  // Use the custom choices provided
+    fileList = customChoices; // Use the custom choices provided
 
     // Controller opening if available
-    SDL_GameController* controller = NULL;
-    if (SDL_NumJoysticks() > 0) {
+    SDL_GameController *controller = NULL;
+    if (SDL_NumJoysticks() > 0)
+    {
         controller = SDL_GameControllerOpen(0);
-        if (!controller) {
+        if (!controller)
+        {
             std::cerr << "Failed to open controller: " << SDL_GetError() << '\n';
         }
-    } else {
+    }
+    else
+    {
         std::cerr << "No joystick found\n";
     }
 
@@ -159,76 +346,76 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
     while (isRunning)
     {
         SDL_Event event;
-        
+
         while (SDL_PollEvent(&event))
         {
             switch (event.type)
             {
-                case SDL_QUIT:
+            case SDL_QUIT:
+                chosenFileI = -1;
+                isRunning = false;
+                break;
+
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_ESCAPE:
                     chosenFileI = -1;
                     isRunning = false;
                     break;
-                
-                case SDL_KEYDOWN:
-                    switch (event.key.keysym.sym)
-                    {
-                        case SDLK_ESCAPE:
-                            chosenFileI = -1;
-                            isRunning = false;
-                            break;
-                        
-                        case SDLK_DOWN:
-                            chosenFileI += 1;
-                            if (chosenFileI > static_cast<int>(fileList.size())-1)
-                                chosenFileI = fileList.size()-1;
-                            break;
-                        
-                        case SDLK_UP:
-                            chosenFileI -= 1;
-                            if (chosenFileI < 0)
-                                chosenFileI = 0;
-                            break;
-                        
-                        case SDLK_RETURN:
-                            isRunning = false;
-                            deinit();
-                            return;
-                    }
+
+                case SDLK_DOWN:
+                    chosenFileI += 1;
+                    if (chosenFileI > static_cast<int>(fileList.size()) - 1)
+                        chosenFileI = fileList.size() - 1;
                     break;
 
-                case SDL_CONTROLLERBUTTONDOWN:
-                    switch (event.cbutton.button)
-                    {
-                        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                            chosenFileI += 1;
-                            if (chosenFileI > static_cast<int>(fileList.size())-1)
-                                chosenFileI = fileList.size()-1;
-                            break;
-
-                        case SDL_CONTROLLER_BUTTON_DPAD_UP:
-                            chosenFileI -= 1;
-                            if (chosenFileI < 0)
-                                chosenFileI = 0;
-                            break;
-
-                        case SDL_CONTROLLER_BUTTON_A:
-                            chosenFileI = -1;
-                            isRunning = false;
-                            deinit();
-                            return;
-
-                        case SDL_CONTROLLER_BUTTON_B:
-                            isRunning = false;
-                            deinit();
-                            return;
-                    }
+                case SDLK_UP:
+                    chosenFileI -= 1;
+                    if (chosenFileI < 0)
+                        chosenFileI = 0;
                     break;
 
-                case SDL_CONTROLLERAXISMOTION:
-                    break;  // Completely ignore analog stick input
+                case SDLK_RETURN:
+                    isRunning = false;
+                    deinit();
+                    return;
+                }
+                break;
+
+            case SDL_CONTROLLERBUTTONDOWN:
+                switch (event.cbutton.button)
+                {
+                case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                    chosenFileI += 1;
+                    if (chosenFileI > static_cast<int>(fileList.size()) - 1)
+                        chosenFileI = fileList.size() - 1;
+                    break;
+
+                case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                    chosenFileI -= 1;
+                    if (chosenFileI < 0)
+                        chosenFileI = 0;
+                    break;
+
+                case SDL_CONTROLLER_BUTTON_A:
+                    chosenFileI = -1;
+                    isRunning = false;
+                    deinit();
+                    return;
+
+                case SDL_CONTROLLER_BUTTON_B:
+                    isRunning = false;
+                    deinit();
+                    return;
+                }
+                break;
+
+            case SDL_CONTROLLERAXISMOTION:
+                break; // Completely ignore analog stick input
             }
         }
-        
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
@@ -236,171 +423,23 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
         drawSelector();
         drawTitle(title);
         drawFileList();
-        
+
         SDL_RenderPresent(renderer);
-        
+
         SDL_Delay(20);
     }
-    
-    if (backgroundTexture) {
+
+    if (backgroundTexture)
+    {
         SDL_DestroyTexture(backgroundTexture);
     }
 
-    if (controller) {
+    if (controller)
+    {
         SDL_GameControllerClose(controller);
     }
 
     deinit();
-}
-
-FileChooser::FileChooser(std::string directory, std::string title, std::string backgroundImage, bool recursive)
-    : window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), chosenFileI(0), title(title)  // Initialiser dans le bon ordre
-{
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-    TTF_Init();
-    
-    window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 1000, SDL_WINDOW_ALLOW_HIGHDPI);
-    
-    if (!window)
-    {
-        std::cerr << "Unable to create window" << '\n';
-        std::exit(2);
-    }
-    
-    renderer = SDL_CreateRenderer(window, -1, 0);
-    
-    if (!renderer)
-    {
-        std::cerr << "Unable to create renderer" << '\n';
-        std::exit(2);
-    }
-
-    // Load background image if supplied
-    if (!backgroundImage.empty()) {
-        SDL_Surface* bgSurface = IMG_Load(backgroundImage.c_str());
-        if (bgSurface) {
-            backgroundTexture = SDL_CreateTextureFromSurface(renderer, bgSurface);
-            SDL_FreeSurface(bgSurface);
-        } else {
-            std::cerr << "Failed to load background image: " << IMG_GetError() << '\n';
-        }
-    }
-
-    font = TTF_OpenFont("./Anonymous_Pro.ttf", 100);
-    
-    if (!font)
-    {
-        std::cerr << "Unable to open font file." << '\n';
-        std::exit(2);
-    }
-
-    SDL_GameController* controller = NULL;
-    if (SDL_NumJoysticks() > 0) {
-        controller = SDL_GameControllerOpen(0);
-        if (!controller) {
-            std::cerr << "Failed to open controller: " << SDL_GetError() << '\n';
-        }
-    } else {
-        std::cerr << "No joystick found\n";
-    }
-
-    drawTitle("Loading...");
-    SDL_RenderPresent(renderer);
-    getFileList(directory, recursive);  // Pass the recursive option here
-
-    bool isRunning{true};
-    while (isRunning)
-    {
-        SDL_Event event;
-        
-        while (SDL_PollEvent(&event))
-        {
-            switch (event.type)
-            {
-                case SDL_QUIT:
-                    chosenFileI = -1;
-                    isRunning = false;
-                    break;
-                
-                case SDL_KEYDOWN:
-                    switch (event.key.keysym.sym)
-                    {
-                        case SDLK_ESCAPE:
-                            chosenFileI = -1;
-                            isRunning = false;
-                            break;
-                        
-                        case SDLK_DOWN:
-                            chosenFileI += 1;
-                            if (chosenFileI > static_cast<int>(fileList.size())-1)
-                                chosenFileI = fileList.size()-1;
-                            break;
-                        
-                        case SDLK_UP:
-                            chosenFileI -= 1;
-                            if (chosenFileI < 0)
-                                chosenFileI = 0;
-                            break;
-                        
-                        case SDLK_RETURN:
-                            isRunning = false;
-                            deinit();
-                            return;
-                    }
-                    break;
-
-                case SDL_CONTROLLERBUTTONDOWN:
-                    switch (event.cbutton.button)
-                    {
-                        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                            chosenFileI += 1;
-                            if (chosenFileI > static_cast<int>(fileList.size())-1)
-                                chosenFileI = fileList.size()-1;
-                            break;
-
-                        case SDL_CONTROLLER_BUTTON_DPAD_UP:
-                            chosenFileI -= 1;
-                            if (chosenFileI < 0)
-                                chosenFileI = 0;
-                            break;
-
-                        case SDL_CONTROLLER_BUTTON_B:
-                            isRunning = false;
-                            deinit();
-                            return;
-
-                        case SDL_CONTROLLER_BUTTON_A:
-                            chosenFileI = -1;
-                            isRunning = false;
-                            break;
-                    }
-                    break;
-
-                case SDL_CONTROLLERAXISMOTION:
-                    break;  // Completely ignore analog stick input
-            }
-        }
-        
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        drawBackground();  // Draw background image
-        drawSelector();
-        drawTitle(title);
-        drawFileList();
-        
-        SDL_RenderPresent(renderer);
-        
-        SDL_Delay(20);
-    }
-    
-    if (backgroundTexture) {
-        SDL_DestroyTexture(backgroundTexture);
-    }
-
-    if (controller) {
-        SDL_GameControllerClose(controller);
-    }
 }
 
 std::string FileChooser::get()

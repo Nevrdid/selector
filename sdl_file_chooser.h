@@ -16,12 +16,11 @@ class FileChooser
 {
 private:
     std::vector<std::string> fileList;
-
+    std::vector<std::string> filters; // New member to store filters
     SDL_Window *window;
     SDL_Renderer *renderer;
     TTF_Font *font;
     SDL_Texture *backgroundTexture;
-
     int chosenFileI{};
     std::string title;
 
@@ -33,8 +32,8 @@ private:
     void deinit();
 
 public:
-    FileChooser(std::string directory, std::string title, std::string backgroundImage = "", bool recursive = false);
-    FileChooser(std::vector<std::string> customChoices, std::string title, std::string backgroundImage = "");  // New builder for customized choices
+    FileChooser(std::string directory, std::string title, std::string backgroundImage = "", bool recursive = false, std::vector<std::string> filters = {}); // New filters parameter
+    FileChooser(std::vector<std::string> customChoices, std::string title, std::string backgroundImage = "");
     std::string get();
 };
 
