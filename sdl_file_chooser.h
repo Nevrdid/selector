@@ -9,6 +9,7 @@
 #include <SDL2/SDL.h>
 #include "SDL_ttf.h"
 #include "SDL_image.h"
+#include <SDL_mixer.h>
 
 #define FILECHOOSER_TITLE "Choose a file"
 
@@ -21,6 +22,7 @@ private:
     SDL_Renderer *renderer;
     TTF_Font *font;
     SDL_Texture *backgroundTexture;
+    Mix_Chunk *clickSound;
     int chosenFileI{};
     std::string title;
 
@@ -29,6 +31,8 @@ private:
     void drawTitle(const std::string &title);
     void drawSelector();
     void drawBackground();
+    Mix_Chunk *loadClickSound(const std::vector<std::string> &paths); // Sound loading method
+
     void deinit();
 
 public:

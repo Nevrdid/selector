@@ -3,6 +3,31 @@
 #include <stdint.h>
 #include <iostream>
 
+Mix_Chunk *FileChooser::loadClickSound(const std::vector<std::string> &paths)
+{
+    // Initialize audio only once before attempting to load sounds
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+    {
+        std::cerr << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << '\n';
+        std::exit(2);
+    }
+
+    // Try loading the sound from the specified paths
+    for (const auto &path : paths)
+    {
+        Mix_Chunk *sound = Mix_LoadWAV(path.c_str());
+        if (sound != nullptr)
+        {
+            return sound; // Return the successfully loaded sound
+        }
+        // std::cerr << "Failed to load click sound from " << path << "! SDL_mixer Error: " << Mix_GetError() << '\n';
+    }
+
+    // If no sound file could be loaded, close the audio
+    Mix_CloseAudio(); // Close the audio system if no sound was loaded
+    return nullptr;   // Return nullptr if no path succeeded
+}
+
 void FileChooser::getFileList(std::string directory, bool recursive)
 {
     auto matchFilters = [&](const std::filesystem::path &file)
@@ -62,12 +87,24 @@ void FileChooser::getFileList(std::string directory, bool recursive)
     std::sort(fileList.begin(), fileList.end());
 }
 
-// Update constructor to handle filters
+// Update constructor to handle filters and sound
 FileChooser::FileChooser(std::string directory, std::string title, std::string backgroundImage, bool recursive, std::vector<std::string> filters)
-    : fileList(), filters(filters), window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), chosenFileI(0), title(title)
+    : fileList(), filters(filters), window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), clickSound(nullptr), chosenFileI(0), title(title)
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO);
     TTF_Init();
+
+    // Load the "click" sound
+    std::vector<std::string> soundPaths = {
+        "/mnt/SDCARD/System/usr/trimui/res/sound/click.wav",
+        "click.wav",
+        "/usr/trimui/res/sound/click.wav"};
+
+    clickSound = loadClickSound(soundPaths);
+    if (clickSound == nullptr)
+    {
+        std::cerr << "No valid click sound file found.\n";
+    }
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 1000, SDL_WINDOW_ALLOW_HIGHDPI);
 
@@ -152,6 +189,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     if (chosenFileI < static_cast<int>(fileList.size()) - 1)
                     {
                         ++chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
                     }
                     break;
 
@@ -160,6 +198,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     if (chosenFileI > 0)
                     {
                         --chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
                     }
                     break;
 
@@ -173,10 +212,12 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                 if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN && chosenFileI < static_cast<int>(fileList.size()) - 1)
                 {
                     ++chosenFileI;
+                    Mix_PlayChannel(-1, clickSound, 0);
                 }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP && chosenFileI > 0)
                 {
                     --chosenFileI;
+                    Mix_PlayChannel(-1, clickSound, 0);
                 }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
                 {
@@ -252,7 +293,7 @@ void FileChooser::drawTitle(const std::string &title)
         SDL_Surface *textSurface = TTF_RenderText_Solid(font, line.c_str(), {255, 255, 255, 255});
 
         SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
-        SDL_Rect targetRect{10, yOffset, textSurface->w / 3, textSurface->h / 3};
+        SDL_Rect targetRect{10, yOffset, textSurface->w / 3, textSurface->h / 3}; // Adjust text size here
 
         SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
@@ -281,10 +322,22 @@ void FileChooser::drawBackground()
 }
 // New builder for customized selections with D-Pad event management
 FileChooser::FileChooser(std::vector<std::string> customChoices, std::string title, std::string backgroundImage)
-    : window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), chosenFileI(0), title(title)
+    : window(nullptr), renderer(nullptr), font(nullptr), backgroundTexture(nullptr), clickSound(nullptr), chosenFileI(0), title(title)
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO);
     TTF_Init();
+
+    // Load the "click" sound
+    std::vector<std::string> soundPaths = {
+        "/mnt/SDCARD/System/usr/trimui/res/sound/click.wav",
+        "click.wav",
+        "/usr/trimui/res/sound/click.wav"};
+
+    clickSound = loadClickSound(soundPaths);
+    if (clickSound == nullptr)
+    {
+        std::cerr << "No valid click sound file found.\n";
+    }
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 1000, SDL_WINDOW_ALLOW_HIGHDPI);
 
@@ -342,6 +395,9 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
         std::cerr << "No joystick found\n";
     }
 
+    /*   drawTitle("Loading...");
+      SDL_RenderPresent(renderer); */
+
     bool isRunning{true};
     while (isRunning)
     {
@@ -365,15 +421,21 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                     break;
 
                 case SDLK_DOWN:
-                    chosenFileI += 1;
-                    if (chosenFileI > static_cast<int>(fileList.size()) - 1)
-                        chosenFileI = fileList.size() - 1;
+                case SDLK_s:
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+                    {
+                        ++chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
                     break;
 
                 case SDLK_UP:
-                    chosenFileI -= 1;
-                    if (chosenFileI < 0)
-                        chosenFileI = 0;
+                case SDLK_w:
+                    if (chosenFileI > 0)
+                    {
+                        --chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
                     break;
 
                 case SDLK_RETURN:
@@ -389,13 +451,28 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                 case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
                     chosenFileI += 1;
                     if (chosenFileI > static_cast<int>(fileList.size()) - 1)
+                    {
                         chosenFileI = fileList.size() - 1;
+                    }
+                    else
+                    {
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+
                     break;
 
                 case SDL_CONTROLLER_BUTTON_DPAD_UP:
                     chosenFileI -= 1;
                     if (chosenFileI < 0)
+                    {
                         chosenFileI = 0;
+                        //
+                    }
+                    else
+                    {
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+
                     break;
 
                 case SDL_CONTROLLER_BUTTON_A:
@@ -451,6 +528,12 @@ std::string FileChooser::get()
 
 void FileChooser::deinit()
 {
+    if (clickSound)
+    {
+        Mix_FreeChunk(clickSound);
+        clickSound = nullptr;
+    }
+
     if (font)
         TTF_CloseFont(font);
 
@@ -460,6 +543,8 @@ void FileChooser::deinit()
     if (window)
         SDL_DestroyWindow(window);
 
+    Mix_CloseAudio();
+    Mix_Quit(); // Exit SDL_mixer
     TTF_Quit();
     SDL_Quit();
 }
