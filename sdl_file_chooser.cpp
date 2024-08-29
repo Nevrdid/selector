@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <iostream>
 
+// Number of files displayed per page
+
 Mix_Chunk *FileChooser::loadClickSound(const std::vector<std::string> &paths)
 {
     // Initialize audio only once before attempting to load sounds
@@ -219,20 +221,20 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     dpadDownPressed = true;
                     lastDpadPressTime = std::chrono::steady_clock::now();
                     if (chosenFileI < static_cast<int>(fileList.size()) - 1)
-                {
-                    ++chosenFileI;
-                    Mix_PlayChannel(-1, clickSound, 0);
-                }
+                    {
+                        ++chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
                 }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
                 {
                     dpadUpPressed = true;
                     lastDpadPressTime = std::chrono::steady_clock::now();
                     if (chosenFileI > 0)
-                {
-                    --chosenFileI;
-                    Mix_PlayChannel(-1, clickSound, 0);
-                }
+                    {
+                        --chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
                 }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
                 {
@@ -242,6 +244,26 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                 {
                     chosenFileI = -1;
                     isRunning = false;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER) // L1
+                {
+                    if (chosenFileI > 0)
+                    {
+                        chosenFileI -= filesPerPage;
+                        if (chosenFileI < 0)
+                            chosenFileI = 0; // Prevent underflow
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) // R1
+                {
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+                    {
+                        chosenFileI += filesPerPage;
+                        if (chosenFileI >= static_cast<int>(fileList.size()))
+                            chosenFileI = static_cast<int>(fileList.size()) - 1; // Prevent overflow
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
                 }
                 break;
 
@@ -502,7 +524,7 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
 
             case SDL_CONTROLLERBUTTONDOWN:
                 if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
-                    {
+                {
                     dpadDownPressed = true;
                     lastDpadPressTime = std::chrono::steady_clock::now();
                     if (chosenFileI < static_cast<int>(fileList.size()) - 1)
@@ -510,9 +532,9 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                         ++chosenFileI;
                         Mix_PlayChannel(-1, clickSound, 0);
                     }
-                    }
+                }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
-                    {
+                {
                     dpadUpPressed = true;
                     lastDpadPressTime = std::chrono::steady_clock::now();
                     if (chosenFileI > 0)
@@ -534,6 +556,26 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                     deinit();
                     return;
                 }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER) // L1
+                {
+                    if (chosenFileI > 0)
+                    {
+                        chosenFileI -= filesPerPage;
+                        if (chosenFileI < 0)
+                            chosenFileI = 0; // Prevent underflow
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) // R1
+                {
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+                    {
+                        chosenFileI += filesPerPage;
+                        if (chosenFileI >= static_cast<int>(fileList.size()))
+                            chosenFileI = static_cast<int>(fileList.size()) - 1; // Prevent overflow
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+                }
                 break;
 
             case SDL_CONTROLLERBUTTONUP:
@@ -548,7 +590,7 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                 break;
 
             case SDL_CONTROLLERAXISMOTION:
-                break;// Completely ignore analog stick input
+                break; // Completely ignore analog stick input
             }
         }
 

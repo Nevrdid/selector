@@ -12,6 +12,7 @@
 #include <SDL_mixer.h>
 
 #define FILECHOOSER_TITLE "Choose a file"
+const int filesPerPage = 10; // Assuming 10 files fit on one page, adjust if needed
 
 class FileChooser
 {
