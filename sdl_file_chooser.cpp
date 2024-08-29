@@ -163,6 +163,11 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
     getFileList(directory, recursive); // Call with filters and recursive flag
 
     bool isRunning{true};
+    auto lastDpadPressTime = std::chrono::steady_clock::now();
+    const int scrollIntervalMs = 250; // Adjust scrolling speed here
+    bool dpadDownPressed = false;
+    bool dpadUpPressed = false;
+
     while (isRunning)
     {
         SDL_Event event;
@@ -209,15 +214,25 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                 break;
 
             case SDL_CONTROLLERBUTTONDOWN:
-                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN && chosenFileI < static_cast<int>(fileList.size()) - 1)
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+                {
+                    dpadDownPressed = true;
+                    lastDpadPressTime = std::chrono::steady_clock::now();
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
                 {
                     ++chosenFileI;
                     Mix_PlayChannel(-1, clickSound, 0);
                 }
-                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP && chosenFileI > 0)
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+                {
+                    dpadUpPressed = true;
+                    lastDpadPressTime = std::chrono::steady_clock::now();
+                    if (chosenFileI > 0)
                 {
                     --chosenFileI;
                     Mix_PlayChannel(-1, clickSound, 0);
+                }
                 }
                 else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
                 {
@@ -229,6 +244,39 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                     isRunning = false;
                 }
                 break;
+
+            case SDL_CONTROLLERBUTTONUP:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+                {
+                    dpadDownPressed = false;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+                {
+                    dpadUpPressed = false;
+                }
+                break;
+            }
+        }
+
+        auto currentTime = std::chrono::steady_clock::now();
+        auto timeSinceLastPress = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastDpadPressTime).count();
+
+        if (dpadDownPressed && timeSinceLastPress >= scrollIntervalMs)
+        {
+            lastDpadPressTime = currentTime;
+            if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+            {
+                ++chosenFileI;
+                Mix_PlayChannel(-1, clickSound, 0);
+            }
+        }
+        else if (dpadUpPressed && timeSinceLastPress >= scrollIntervalMs)
+        {
+            lastDpadPressTime = currentTime;
+            if (chosenFileI > 0)
+            {
+                --chosenFileI;
+                Mix_PlayChannel(-1, clickSound, 0);
             }
         }
 
@@ -239,6 +287,8 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
         drawTitle(title);
         drawFileList();
         SDL_RenderPresent(renderer);
+
+        SDL_Delay(20);
     }
     if (backgroundTexture)
     {
@@ -255,16 +305,16 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
 
 void FileChooser::drawFileList()
 {
-    for (int i{}; i < static_cast<int>(fileList.size()); ++i)
+    for (int i = 0; i < static_cast<int>(fileList.size()); ++i)
     {
-        int y{500 - chosenFileI * 30 + i * 30};
+        int y = 500 - chosenFileI * 30 + i * 30;
 
         if (y < 1000 && y > 0)
         {
             SDL_Surface *textSurface = TTF_RenderText_Blended(
                 font,
                 fileList[i].c_str(),
-                {255, 255, 255, static_cast<uint8_t>(255 - abs(500 - y) / 2)});
+                {255, 255, 255, static_cast<uint8_t>(255 - std::abs(500 - y) / 2)});
 
             SDL_Rect sourceRect{0, 0, textSurface->w, textSurface->h};
             SDL_Rect targetRect{0, y, textSurface->w / 5, textSurface->h / 5};
@@ -399,6 +449,11 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
       SDL_RenderPresent(renderer); */
 
     bool isRunning{true};
+    auto lastDpadPressTime = std::chrono::steady_clock::now();
+    const int scrollIntervalMs = 250;
+    bool dpadDownPressed = false;
+    bool dpadUpPressed = false;
+
     while (isRunning)
     {
         SDL_Event event;
@@ -446,50 +501,76 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
                 break;
 
             case SDL_CONTROLLERBUTTONDOWN:
-                switch (event.cbutton.button)
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+                    {
+                    dpadDownPressed = true;
+                    lastDpadPressTime = std::chrono::steady_clock::now();
+                    if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+                    {
+                        ++chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+                    }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+                    {
+                    dpadUpPressed = true;
+                    lastDpadPressTime = std::chrono::steady_clock::now();
+                    if (chosenFileI > 0)
+                    {
+                        --chosenFileI;
+                        Mix_PlayChannel(-1, clickSound, 0);
+                    }
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
                 {
-                case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                    chosenFileI += 1;
-                    if (chosenFileI > static_cast<int>(fileList.size()) - 1)
-                    {
-                        chosenFileI = fileList.size() - 1;
-                    }
-                    else
-                    {
-                        Mix_PlayChannel(-1, clickSound, 0);
-                    }
-
-                    break;
-
-                case SDL_CONTROLLER_BUTTON_DPAD_UP:
-                    chosenFileI -= 1;
-                    if (chosenFileI < 0)
-                    {
-                        chosenFileI = 0;
-                        //
-                    }
-                    else
-                    {
-                        Mix_PlayChannel(-1, clickSound, 0);
-                    }
-
-                    break;
-
-                case SDL_CONTROLLER_BUTTON_A:
                     chosenFileI = -1;
                     isRunning = false;
                     deinit();
                     return;
-
-                case SDL_CONTROLLER_BUTTON_B:
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B)
+                {
                     isRunning = false;
                     deinit();
                     return;
                 }
                 break;
 
+            case SDL_CONTROLLERBUTTONUP:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+                {
+                    dpadDownPressed = false;
+                }
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+                {
+                    dpadUpPressed = false;
+                }
+                break;
+
             case SDL_CONTROLLERAXISMOTION:
-                break; // Completely ignore analog stick input
+                break;// Completely ignore analog stick input
+            }
+        }
+
+        auto currentTime = std::chrono::steady_clock::now();
+        auto timeSinceLastPress = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastDpadPressTime).count();
+
+        if (dpadDownPressed && timeSinceLastPress >= scrollIntervalMs)
+        {
+            lastDpadPressTime = currentTime;
+            if (chosenFileI < static_cast<int>(fileList.size()) - 1)
+            {
+                ++chosenFileI;
+                Mix_PlayChannel(-1, clickSound, 0);
+            }
+        }
+        else if (dpadUpPressed && timeSinceLastPress >= scrollIntervalMs)
+        {
+            lastDpadPressTime = currentTime;
+            if (chosenFileI > 0)
+            {
+                --chosenFileI;
+                Mix_PlayChannel(-1, clickSound, 0);
             }
         }
 
