@@ -3,6 +3,61 @@
 #include <stdint.h>
 #include <iostream>
 
+void FileChooser::renderCounter(SDL_Renderer *renderer, int currentOption, int totalOptions)
+{
+    // Define text color (white for example)
+    SDL_Color textColor = {255, 255, 255, 255}; // RGBA format: white
+
+    // Load a smaller font for the counter (e.g., size 12)
+    TTF_Font *smallFont = TTF_OpenFont("./Anonymous_Pro.ttf", 24); // Adjust the path and size as needed
+    if (smallFont == nullptr)
+    {
+        std::cerr << "Failed to load small font: " << TTF_GetError() << std::endl;
+        return;
+    }
+
+    // Create the counter text: "currentOption/totalOptions"
+    std::string counterText = std::to_string(currentOption) + "/" + std::to_string(totalOptions);
+
+    // Render the text into an SDL_Surface using the smaller font
+    SDL_Surface *textSurface = TTF_RenderText_Solid(smallFont, counterText.c_str(), textColor);
+    if (textSurface == nullptr)
+    {
+        std::cerr << "Failed to create text surface: " << TTF_GetError() << std::endl;
+        TTF_CloseFont(smallFont); // Clean up the small font
+        return;
+    }
+
+    // Convert the SDL_Surface to SDL_Texture
+    SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (textTexture == nullptr)
+    {
+        std::cerr << "Failed to create texture: " << SDL_GetError() << std::endl;
+        SDL_FreeSurface(textSurface);
+        TTF_CloseFont(smallFont); // Clean up the small font
+        return;
+    }
+
+    // Get window size to position the counter in the bottom right corner
+    int windowWidth, windowHeight;
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+
+    // Get text width and height from the surface
+    int textWidth = textSurface->w;
+    int textHeight = textSurface->h;
+
+    // Define destination rectangle for rendering the counter (bottom-right corner)
+    SDL_Rect dstRect = {windowWidth - textWidth - 10, windowHeight - textHeight - 10, textWidth, textHeight};
+
+    // Render the text texture onto the screen
+    SDL_RenderCopy(renderer, textTexture, nullptr, &dstRect);
+
+    // Clean up
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+    TTF_CloseFont(smallFont); // Clean up the small font
+}
+
 // Number of files displayed per page
 
 Mix_Chunk *FileChooser::loadClickSound(const std::vector<std::string> &paths)
@@ -166,7 +221,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
 
     bool isRunning{true};
     auto lastDpadPressTime = std::chrono::steady_clock::now();
-    const int scrollIntervalMs = 250; // Adjust scrolling speed here
+    const int scrollIntervalMs = 220; // Adjust scrolling speed here
     bool dpadDownPressed = false;
     bool dpadUpPressed = false;
 
@@ -309,7 +364,6 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
         drawTitle(title);
         drawFileList();
         SDL_RenderPresent(renderer);
-
         SDL_Delay(20);
     }
     if (backgroundTexture)
@@ -347,6 +401,9 @@ void FileChooser::drawFileList()
 
             SDL_DestroyTexture(textTexture);
             SDL_FreeSurface(textSurface);
+
+            // Call the method to display the counter in the bottom right corner
+            renderCounter(renderer, chosenFileI + 1, static_cast<int>(fileList.size()));
         }
     }
 }
@@ -472,7 +529,7 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
 
     bool isRunning{true};
     auto lastDpadPressTime = std::chrono::steady_clock::now();
-    const int scrollIntervalMs = 250;
+    const int scrollIntervalMs = 220;
     bool dpadDownPressed = false;
     bool dpadUpPressed = false;
 

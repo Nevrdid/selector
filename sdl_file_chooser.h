@@ -32,7 +32,9 @@ private:
     void drawTitle(const std::string &title);
     void drawSelector();
     void drawBackground();
+
     Mix_Chunk *loadClickSound(const std::vector<std::string> &paths); // Sound loading method
+    void renderCounter(SDL_Renderer *renderer, int currentOption, int totalOptions); // Declaration of renderCounter
 
     void deinit();
 
