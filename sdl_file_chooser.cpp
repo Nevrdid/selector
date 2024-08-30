@@ -236,11 +236,11 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
                         Mix_PlayChannel(-1, clickSound, 0);
                     }
                 }
-                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B)
                 {
                     isRunning = false;
                 }
-                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B)
+                else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A)
                 {
                     chosenFileI = -1;
                     isRunning = false;

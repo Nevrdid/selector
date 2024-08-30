@@ -1,7 +1,8 @@
 #include "sdl_file_chooser.h"
 #include <iostream>
-#include <cstring>
+#include <fstream>
 #include <vector>
+#include <string>
 
 // Function to replace all occurrences of \n with a real line feed
 std::string replaceLiteralNewlines(const std::string &str)
@@ -24,8 +25,9 @@ int main(int argc, char *argv[])
     bool recursive = false;
     std::vector<std::string> customChoices;
     bool useCustomChoices = false;
-    std::vector<std::string> filters; // New container for filters
+    std::vector<std::string> filters; // Container for filters
 
+    // Parse arguments
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "-d") == 0 && i + 1 < argc)
@@ -60,27 +62,67 @@ int main(int argc, char *argv[])
                 customChoices.push_back(argv[++i]);
             }
         }
+        else if (strcmp(argv[i], "-cf") == 0)
+        {
+            // Collect choices from a file
+            if (++i < argc)
+            {
+                std::ifstream inputFile(argv[i]);
+                if (!inputFile)
+                {
+                    std::cerr << "Error: Cannot open file " << argv[i] << "\n";
+                    return 1;
+                }
+                std::string line;
+                while (std::getline(inputFile, line))
+                {
+                    if (!line.empty())
+                    {
+                        customChoices.push_back(line);
+                    }
+                }
+                useCustomChoices = true; // Ensure custom choices are used
+            }
+            else
+            {
+                std::cerr << "Error: No file specified for -cf option\n";
+                return 1;
+            }
+        }
         else if (strcmp(argv[i], "-f") == 0)
-        { // New -f option for filtering
+        {
+            // Collect filters
             while (i + 1 < argc && argv[i + 1][0] != '-')
             {
-                filters.push_back(argv[++i]); // Collect filters
+                filters.push_back(argv[++i]);
             }
         }
     }
 
+    // Choose the correct FileChooser constructor based on the conditions
+    FileChooser *fileChooser = nullptr;
     if (useCustomChoices)
     {
-        FileChooser fileChooser{customChoices, title, backgroundImage};
-        std::string chosenFile{fileChooser.get()};
-        std::cout << "Selected: " << chosenFile << '\n';
+        fileChooser = new FileChooser(customChoices, title, backgroundImage);
     }
     else
     {
-        FileChooser fileChooser{directory, title, backgroundImage, recursive, filters}; // Pass filters to FileChooser
-        std::string chosenFile{fileChooser.get()};
-        std::cout << "Selected: " << chosenFile << '\n';
+        fileChooser = new FileChooser(directory, title, backgroundImage, recursive, filters); // Pass filters to FileChooser
     }
+
+    // Get the chosen file
+    std::string chosenFile = fileChooser->get();
+
+    if (!chosenFile.empty())
+    {
+        std::cout << "You selected: " << chosenFile << "\n";
+    }
+    else
+    {
+        std::cout << "No file selected\n";
+    }
+
+    delete fileChooser; // Clean up the dynamically allocated object
 
     return 0;
 }
