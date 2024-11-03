@@ -9,7 +9,7 @@ void FileChooser::renderCounter(SDL_Renderer *renderer, int currentOption, int t
     SDL_Color textColor = {255, 255, 255, 255}; // RGBA format: white
 
     // Load a smaller font for the counter (e.g., size 12)
-    TTF_Font *smallFont = TTF_OpenFont("./Anonymous_Pro.ttf", 24); // Adjust the path and size as needed
+    TTF_Font *smallFont = TTF_OpenFont("/mnt/SDCARD/System/resources/Fonts/Anonymous_Pro.ttf", 24); // Adjust the path and size as needed
     if (smallFont == nullptr)
     {
         std::cerr << "Failed to load small font: " << TTF_GetError() << std::endl;
@@ -193,7 +193,7 @@ FileChooser::FileChooser(std::string directory, std::string title, std::string b
         }
     }
 
-    font = TTF_OpenFont("./Anonymous_Pro.ttf", 100);
+    font = TTF_OpenFont("/mnt/SDCARD/System/resources/Fonts/Anonymous_Pro.ttf", 100);
 
     if (!font)
     {
@@ -499,7 +499,7 @@ FileChooser::FileChooser(std::vector<std::string> customChoices, std::string tit
         }
     }
 
-    font = TTF_OpenFont("./Anonymous_Pro.ttf", 100);
+    font = TTF_OpenFont("/mnt/SDCARD/System/resources/Fonts/Anonymous_Pro.ttf", 100);
 
     if (!font)
     {
